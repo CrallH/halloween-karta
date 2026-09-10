@@ -20,8 +20,12 @@
     background: #261a44; border: 1px solid var(--pumpkin); border-radius: 12px; color: var(--ink);
     text-decoration: none; font-weight: 600; font-size: 1.05rem;
   }
-  .maplink small { color: var(--cobweb); font-weight: 400; }
   .maplink.disabled { opacity: .55; pointer-events: none; border-color: #4a3a72; }
+
+  .counter {
+    margin: 16px 18px 0; padding: 12px 16px; border-radius: 12px; background: #261a44;
+    border: 1px solid #4a3a72; text-align: center; color: var(--cobweb); font-weight: 600;
+  }
 
   .mine {
     margin: 12px 18px 0; padding: 14px 16px; border-radius: 12px; background: #261a44; border: 1px solid #4a3a72;
@@ -179,9 +183,10 @@
   </div>
   <p class="intro">Anmäl ditt hus i <span id="town"></span> – så syns det direkt på kartan för alla som går bus eller godis.</p>
 
+  <div class="counter" id="counter">Laddar…</div>
+
   <a class="maplink" id="maplink" href="karta.html">
     <span id="maplinkText">🗺️ Öppna kartan</span>
-    <small id="count">Laddar…</small>
   </a>
 
   <div class="mine" id="mine">
@@ -197,7 +202,7 @@
       <input type="text" id="street" placeholder="Gata" autocomplete="address-line1" required>
       <input type="text" id="number" placeholder="Nr" inputmode="numeric" required>
     </div>
-    <input type="text" id="name" placeholder="Namn eller hälsning (valfritt)" maxlength="60">
+    <input type="text" id="name" placeholder="Namn eller hälsning, t.ex. Slutar kl 20 (valfritt)" maxlength="60">
     <div class="choice">
       <label><input type="radio" name="scary" value="1" checked><span>🎃 Läskigt hus</span></label>
       <label><input type="radio" name="scary" value="0" id="ghostOpt"><span>👻 Snällt hus</span></label>
@@ -223,18 +228,18 @@
 <script src="api.js"></script>
 <script>
   const CFG = window.HALLOWEEN;
-  document.getElementById('town').textContent = CFG.TOWN;
+  document.getElementById('town').textContent = CFG.AREA_LABEL || CFG.TOWN;
   const KEY = 'halloween_mine';
 
   function setMsg(t, cls) { const m = document.getElementById('msg'); m.textContent = t; m.className = cls || ''; }
   const showErr = err => setMsg(err.message || String(err), 'err');
 
-  async function load() {
+  async function loadCount() {
     try {
-      const { entries } = await api({ action: 'list' });
-      document.getElementById('count').textContent =
-        entries.length ? entries.length + ' hus anmälda hittills' : 'Inga hus anmälda ännu – bli först!';
-    } catch (e) { document.getElementById('count').textContent = 'Kunde inte hämta antal'; }
+      const { count } = await api({ action: 'count' });
+      document.getElementById('counter').textContent =
+        count ? count + ' hus anmälda hittills' : 'Inga hus anmälda ännu – bli först!';
+    } catch (e) { document.getElementById('counter').textContent = 'Kunde inte hämta antal'; }
   }
 
   async function loadMapStatus() {
@@ -245,7 +250,6 @@
         link.removeAttribute('href');
         link.classList.add('disabled');
         document.getElementById('maplinkText').textContent = '🗺️ Kartan är stängd just nu';
-        document.getElementById('count').textContent = 'Kika tillbaka senare';
       }
     } catch (e) { /* status okänd – lämna kartlänken aktiv */ }
   }
@@ -272,7 +276,7 @@
     setMsg('Tar bort…');
     try {
       const r = await api({ action: 'remove', code });
-      setMsg('Borttaget: ' + r.address, 'ok'); onDone && onDone(); load();
+      setMsg('Borttaget: ' + r.address, 'ok'); onDone && onDone(); loadCount();
     } catch (e) { showErr(e); }
   }
   document.getElementById('removeBtn').addEventListener('click', () => { const m = getMine(); if (m) remove(m.code, clearMine); });
@@ -299,12 +303,12 @@
       setMsg('Tillagt: ' + r.address, 'ok');
       document.getElementById('f').reset();
       saveMine({ code: r.code, address: r.address, scary });
-      load();
+      loadCount();
     } catch (e) { showErr(e); }
     btn.disabled = false;
   });
 
-  load();
+  loadCount();
   loadMapStatus();
   restoreMine();
 </script>

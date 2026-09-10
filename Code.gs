@@ -1,6 +1,6 @@
 // Halloween-kartan – Google Apps Script som JSON-API
 // Sheet-kolumner: Tidpunkt | Namn | Adress | Läskig | Lat | Lng | Kod
-// Anropas från halloween.crall.se med ?action=list | add | remove | mine | status | adminAuth | toggleMap
+// Anropas från halloween.crall.se med ?action=list | add | remove | mine | count | status | adminAuth | toggleMap
 //
 // Admin: sätt ett Script Property "ADMIN_PASSWORD" (Project Settings → Script Properties)
 // i Apps Script-projektet. Lösenordet ska INTE skrivas i koden.
@@ -15,6 +15,7 @@ function doGet(e) {
       case 'add':       out = addEntry(p.name, p.address, p.scary === '1'); break;
       case 'remove':    out = removeEntry(p.code); break;
       case 'mine':      out = { entry: getMyEntry(p.code) }; break;
+      case 'count':     out = { count: getEntries().length }; break;
       case 'status':    out = { enabled: isMapEnabled_() }; break;
       case 'adminAuth': out = { ok: checkAdminPassword_(p.password) }; break;
       case 'toggleMap': out = toggleMap(p.password, p.enabled === '1'); break;
