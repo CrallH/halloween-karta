@@ -1,6 +1,6 @@
 // Halloween-kartan – Google Apps Script som JSON-API
 // Sheet-kolumner: Tidpunkt | Namn | Adress | Läskig | Lat | Lng | Kod
-// Anropas från halloween.crall.se med ?action=list | add | remove | mine | status | toggleMap
+// Anropas från halloween.crall.se med ?action=list | add | remove | mine | status | adminAuth | toggleMap
 //
 // Admin: sätt ett Script Property "ADMIN_PASSWORD" (Project Settings → Script Properties)
 // i Apps Script-projektet. Lösenordet ska INTE skrivas i koden.
@@ -16,8 +16,9 @@ function doGet(e) {
       case 'remove':    out = removeEntry(p.code); break;
       case 'mine':      out = { entry: getMyEntry(p.code) }; break;
       case 'status':    out = { enabled: isMapEnabled_() }; break;
+      case 'adminAuth': out = { ok: checkAdminPassword_(p.password) }; break;
       case 'toggleMap': out = toggleMap(p.password, p.enabled === '1'); break;
-      default:          out = { entries: getEntries() };
+      default:          out = { entries: isMapEnabled_() ? getEntries() : [] };
     }
   } catch (err) {
     out = { error: err.message || String(err) };
@@ -115,10 +116,15 @@ function isMapEnabled_() {
   return v !== '0'; // påslagen som standard tills den stängs av explicit
 }
 
-function toggleMap(password, enabled) {
+function checkAdminPassword_(password) {
   const adminPassword = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
   if (!adminPassword) throw new Error('Adminlösenord är inte konfigurerat i Script Properties.');
   if (password !== adminPassword) throw new Error('Fel lösenord.');
+  return true;
+}
+
+function toggleMap(password, enabled) {
+  checkAdminPassword_(password);
   PropertiesService.getScriptProperties().setProperty('MAP_ENABLED', enabled ? '1' : '0');
   return { ok: true, enabled: enabled };
 }

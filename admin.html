@@ -41,6 +41,8 @@
   #msg.ok { color: #9be89b; }
 
   a.back { display: inline-block; margin-top: 24px; color: var(--cobweb); font-size: .9rem; }
+  a.logout { display: inline-block; margin-top: 4px; color: var(--cobweb); font-size: .85rem; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -48,19 +50,28 @@
   <h1>🎃 Admin</h1>
   <p class="sub">Sätt på eller stäng av kartknappen på startsidan.</p>
 
-  <div class="status">
-    <span>Kartan är just nu:</span>
-    <b id="statusText">Laddar…</b>
-  </div>
-
-  <form id="f">
-    <input type="password" id="password" placeholder="Adminlösenord" required autocomplete="current-password">
-    <div class="row">
-      <button type="submit" id="onBtn" data-enabled="1">Sätt på kartan</button>
-      <button type="submit" id="offBtn" data-enabled="0" class="off">Stäng av kartan</button>
-    </div>
-    <div id="msg"></div>
+  <form id="loginForm">
+    <input type="password" id="loginPassword" placeholder="Adminlösenord" required autocomplete="current-password">
+    <button type="submit" id="loginBtn">Logga in</button>
+    <div id="loginMsg"></div>
   </form>
+
+  <div id="panel" hidden>
+    <div class="status">
+      <span>Kartan är just nu:</span>
+      <b id="statusText">Laddar…</b>
+    </div>
+
+    <form id="f">
+      <div class="row">
+        <button type="submit" id="onBtn" data-enabled="1">Sätt på kartan</button>
+        <button type="submit" id="offBtn" data-enabled="0" class="off">Stäng av kartan</button>
+      </div>
+      <div id="msg"></div>
+    </form>
+
+    <a class="logout" href="#" id="logoutLink">Logga ut</a>
+  </div>
 
   <a class="back" href="index.html">← Tillbaka till startsidan</a>
 </main>
@@ -68,6 +79,13 @@
 <script src="config.js"></script>
 <script src="api.js"></script>
 <script>
+  const PW_KEY = 'halloween_admin_pw';
+  let adminPassword = null;
+
+  const loginForm = document.getElementById('loginForm');
+  const panel = document.getElementById('panel');
+
+  function setLoginMsg(t, cls) { const m = document.getElementById('loginMsg'); m.textContent = t; m.className = cls || ''; }
   function setMsg(t, cls) { const m = document.getElementById('msg'); m.textContent = t; m.className = cls || ''; }
 
   function renderStatus(enabled) {
@@ -83,24 +101,67 @@
     } catch (e) { document.getElementById('statusText').textContent = 'Okänd'; }
   }
 
+  function showPanel(password) {
+    adminPassword = password;
+    try { sessionStorage.setItem(PW_KEY, password); } catch (e) {}
+    loginForm.hidden = true;
+    panel.hidden = false;
+    loadStatus();
+  }
+
+  function showLogin() {
+    adminPassword = null;
+    try { sessionStorage.removeItem(PW_KEY); } catch (e) {}
+    panel.hidden = true;
+    loginForm.hidden = false;
+    document.getElementById('loginPassword').value = '';
+  }
+
+  async function tryLogin(password) {
+    const btn = document.getElementById('loginBtn');
+    btn.disabled = true; setLoginMsg('Loggar in…');
+    try {
+      await api({ action: 'adminAuth', password });
+      setLoginMsg('');
+      showPanel(password);
+    } catch (e) {
+      setLoginMsg(e.message || String(e), 'err');
+      try { sessionStorage.removeItem(PW_KEY); } catch (err) {}
+    }
+    btn.disabled = false;
+  }
+
+  loginForm.addEventListener('submit', ev => {
+    ev.preventDefault();
+    tryLogin(document.getElementById('loginPassword').value);
+  });
+
   document.getElementById('f').addEventListener('submit', async ev => {
     ev.preventDefault();
     const enabled = ev.submitter.dataset.enabled;
-    const password = document.getElementById('password').value;
     const onBtn = document.getElementById('onBtn');
     const offBtn = document.getElementById('offBtn');
     onBtn.disabled = true; offBtn.disabled = true;
     setMsg('Uppdaterar…');
     try {
-      const r = await api({ action: 'toggleMap', password, enabled });
+      const r = await api({ action: 'toggleMap', password: adminPassword, enabled });
       renderStatus(r.enabled);
       setMsg(r.enabled ? 'Kartan är nu påslagen.' : 'Kartan är nu avstängd.', 'ok');
-      document.getElementById('password').value = '';
-    } catch (e) { setMsg(e.message || String(e), 'err'); }
+    } catch (e) {
+      setMsg(e.message || String(e), 'err');
+      if (/lösenord/i.test(e.message || '')) showLogin();
+    }
     onBtn.disabled = false; offBtn.disabled = false;
   });
 
-  loadStatus();
+  document.getElementById('logoutLink').addEventListener('click', ev => { ev.preventDefault(); showLogin(); });
+
+  // Återanvänd inloggning under samma flik-session.
+  (function restore() {
+    let saved = null;
+    try { saved = sessionStorage.getItem(PW_KEY); } catch (e) {}
+    if (saved) tryLogin(saved);
+  })();
 </script>
 </body>
 </html>
