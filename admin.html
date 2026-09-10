@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin – Varla Halloween-karta</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --night: #1a1030; --ink: #f4ead8; --pumpkin: #ff8a1f; --cobweb: #a99bc7; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--night); color: var(--ink); font-family: Nunito, sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 32px 18px; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  p.sub { color: var(--cobweb); margin: 0 0 24px; }
+
+  .status {
+    margin-bottom: 20px; padding: 14px 16px; border-radius: 12px; background: #261a44;
+    border: 1px solid #4a3a72; display: flex; justify-content: space-between; align-items: center;
+  }
+  .status b.on { color: #9be89b; }
+  .status b.off { color: #ff6b6b; }
+
+  form { display: grid; gap: 10px; }
+  input[type=password] {
+    width: 100%; padding: 12px 14px; font: inherit; font-size: 1rem;
+    background: #261a44; color: var(--ink); border: 1px solid #4a3a72; border-radius: 10px;
+  }
+  input[type=password]:focus { outline: 2px solid var(--pumpkin); outline-offset: 1px; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  button {
+    padding: 14px; font: inherit; font-size: 1.05rem; font-weight: 600; border: 0; border-radius: 10px;
+    background: var(--pumpkin); color: var(--night); cursor: pointer;
+  }
+  button.off { background: transparent; color: #ff6b6b; border: 1px solid #ff6b6b; }
+  button:disabled { opacity: .6; cursor: wait; }
+
+  #msg { min-height: 1.3em; font-size: .95rem; margin-top: 4px; }
+  #msg.err { color: #ff6b6b; }
+  #msg.ok { color: #9be89b; }
+
+  a.back { display: inline-block; margin-top: 24px; color: var(--cobweb); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🎃 Admin</h1>
+  <p class="sub">Sätt på eller stäng av kartknappen på startsidan.</p>
+
+  <div class="status">
+    <span>Kartan är just nu:</span>
+    <b id="statusText">Laddar…</b>
+  </div>
+
+  <form id="f">
+    <input type="password" id="password" placeholder="Adminlösenord" required autocomplete="current-password">
+    <div class="row">
+      <button type="submit" id="onBtn" data-enabled="1">Sätt på kartan</button>
+      <button type="submit" id="offBtn" data-enabled="0" class="off">Stäng av kartan</button>
+    </div>
+    <div id="msg"></div>
+  </form>
+
+  <a class="back" href="index.html">← Tillbaka till startsidan</a>
+</main>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+  function setMsg(t, cls) { const m = document.getElementById('msg'); m.textContent = t; m.className = cls || ''; }
+
+  function renderStatus(enabled) {
+    const el = document.getElementById('statusText');
+    el.textContent = enabled ? 'PÅ' : 'AV';
+    el.className = enabled ? 'on' : 'off';
+  }
+
+  async function loadStatus() {
+    try {
+      const { enabled } = await api({ action: 'status' });
+      renderStatus(enabled !== false);
+    } catch (e) { document.getElementById('statusText').textContent = 'Okänd'; }
+  }
+
+  document.getElementById('f').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const enabled = ev.submitter.dataset.enabled;
+    const password = document.getElementById('password').value;
+    const onBtn = document.getElementById('onBtn');
+    const offBtn = document.getElementById('offBtn');
+    onBtn.disabled = true; offBtn.disabled = true;
+    setMsg('Uppdaterar…');
+    try {
+      const r = await api({ action: 'toggleMap', password, enabled });
+      renderStatus(r.enabled);
+      setMsg(r.enabled ? 'Kartan är nu påslagen.' : 'Kartan är nu avstängd.', 'ok');
+      document.getElementById('password').value = '';
+    } catch (e) { setMsg(e.message || String(e), 'err'); }
+    onBtn.disabled = false; offBtn.disabled = false;
+  });
+
+  loadStatus();
+</script>
+</body>
+</html>
