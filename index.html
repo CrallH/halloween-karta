@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Varla Halloween-karta – anmäl ditt hus</title>
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --night: #1a1030; --ink: #f4ead8; --pumpkin: #ff8a1f; --cobweb: #a99bc7; --ghost: #f4ead8; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--night); color: var(--ink); font-family: Nunito, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 8px 0 32px; }
+
+  .banner { padding: 0 6px; }
+  .banner svg { display: block; width: 100%; height: auto; }
+  .intro { margin: 4px 18px 0; color: var(--cobweb); text-align: center; }
+
+  .maplink {
+    margin: 16px 18px 0; padding: 16px 18px; display: flex; justify-content: space-between; align-items: center;
+    background: #261a44; border: 1px solid var(--pumpkin); border-radius: 12px; color: var(--ink);
+    text-decoration: none; font-weight: 600; font-size: 1.05rem;
+  }
+  .maplink small { color: var(--cobweb); font-weight: 400; }
+
+  .mine {
+    margin: 12px 18px 0; padding: 14px 16px; border-radius: 12px; background: #261a44; border: 1px solid #4a3a72;
+    display: none; gap: 8px; flex-direction: column;
+  }
+  .mine.show { display: flex; }
+  .mine b { font-size: 1.05rem; }
+  .mine .code { font-family: monospace; font-size: 1.15rem; letter-spacing: .08em; color: var(--pumpkin); }
+  .mine small { color: var(--cobweb); }
+
+  form { padding: 16px 18px 12px; display: grid; gap: 10px; }
+  input[type=text] {
+    width: 100%; padding: 12px 14px; font: inherit; font-size: 1rem;
+    background: #261a44; color: var(--ink); border: 1px solid #4a3a72; border-radius: 10px;
+  }
+  input[type=text]:focus { outline: 2px solid var(--pumpkin); outline-offset: 1px; }
+  .addr { display: grid; grid-template-columns: 1fr 88px; gap: 8px; }
+  .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .choice label {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 12px; border-radius: 10px; border: 1px solid #4a3a72; cursor: pointer; font-weight: 600;
+  }
+  .choice input { display: none; }
+  .choice input:checked + span { color: var(--night); }
+  .choice label:has(input:checked) { background: var(--pumpkin); border-color: var(--pumpkin); }
+  .choice label:has(#ghostOpt:checked) { background: var(--ghost); }
+  button {
+    padding: 14px; font: inherit; font-size: 1.05rem; font-weight: 600; border: 0; border-radius: 10px;
+    background: var(--pumpkin); color: var(--night); cursor: pointer;
+  }
+  button:disabled { opacity: .6; cursor: wait; }
+  .danger { background: transparent; color: #ff6b6b; border: 1px solid #ff6b6b; }
+  #msg { min-height: 1.3em; font-size: .95rem; }
+  #msg.err { color: #ff6b6b; }
+  #msg.ok { color: #9be89b; }
+
+  details { margin: 0 18px; color: var(--cobweb); font-size: .95rem; }
+  details summary { cursor: pointer; }
+  details .row { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="banner">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 580" width="100%" role="img" aria-label="Varla Halloween Karta" xmlns:c2pa="http://c2pa.org/manifest"><metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYTozM2FjYzNhMS1iZDE3LTRlY2MtYjQ2Mi0zM2YxM2Q5ZmE4MTYAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaJ2MsvsM7eZEU1bAMJ0vV0EAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDozNjc5MWUxMS02NmNlLTRmY2QtOTgxMS03NTQyYzg0MDY0NmVscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNoJPrsMa8HCnQRTHECFueTvAAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggwNQr7NxQgzm9Yoo+M2QQpZrdp95LLEiZb2HWHdHJwOmkZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaKP3buYBD+ifLL0gO4oyJ5kAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRNAAAAAAAAAAAAAAAAAGRoYXNoWCAxeFYjIx/cirj4+d1ahvci1ZObBrOnb5mDRguBu6lV3WRuYW1lbmp1bWJmIG1hbmlmZXN0amV4Y2x1c2lvbnOBomVzdGFydBi5Zmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOjMzYWNjM2ExLWJkMTctNGVjYy1iNDYyLTMzZjEzZDlmYTgxNi9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOjMxMDM5NzRkLTUwNmYtNDExNS1hMWY1LTA1ZGEwMGE1YWY4Y3JjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCDA1Cvs3FCDOb1iij4zZBClmt2n3kssSJlvYdYd0cnA6aJjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggV5oMXkA7qhTZXz6BI4Yi5VxAzUTcrzFWluSKXGf/QC6iY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFggCADtBy/oU1cZhoC97+C7NU5mY/5yUNJLyIchxy8yI2l0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQDxa64099A7zeBKErLGE3riciZODyIPNwskAZgeqpbigzaiQ+epLf73nRMxr8qQUTHuC2SDfnySOVzWE0Ytw0ZY=</c2pa:manifest></metadata>
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Creepster&amp;display=swap');
+      .spook { font-family: Creepster, 'Chiller', Impact, 'Arial Black', sans-serif; }
+    </style>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff8a1f" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ff8a1f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="txt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb347"/>
+      <stop offset="1" stop-color="#ff7a00"/>
+    </linearGradient>
+  <g id="pk">
+    <path d="M-2 -32 c-2 -8 4 -14 10 -14 c-4 6 -4 10 -2 14z" fill="#0a0518"/>
+    <ellipse rx="34" ry="28" fill="#0a0518"/>
+    <ellipse cx="-14" rx="16" ry="27" fill="#0a0518"/><ellipse cx="14" rx="16" ry="27" fill="#0a0518"/>
+    <g fill="#ff8a1f">
+      <path d="M-20 -6 l13 -9 l2 12z"/><path d="M20 -6 l-13 -9 l-2 12z"/><path d="M0 2 l-4 7 h8z"/>
+      <path d="M-22 12 q22 22 44 0 l-6 0 l-5 6 l-6 -6 l-5 6 l-6 -6 l-5 6 l-5 -6z"/>
+    </g>
+  </g>
+  </defs>
+
+  <!-- måne -->
+  <circle cx="930" cy="120" r="150" fill="url(#glow)"/>
+  <circle cx="930" cy="120" r="72" fill="#ff8a1f"/>
+
+  <!-- svart blob med droppar -->
+  <path fill="#0a0518" d="
+    M110 250 Q600 200 1090 250
+    L1078 440 Q1066 470 1058 500 Q1052 530 1060 552 Q1040 556 1034 500 Q1028 470 1010 462
+    Q988 470 978 505 Q972 530 982 558 Q958 560 950 510 Q944 470 920 466
+    Q870 472 856 462 Q838 490 838 530 Q832 548 818 546 Q810 500 798 478
+    Q720 478 682 474 Q672 500 676 548 Q660 560 656 520 Q650 490 630 482
+    Q596 486 580 476 Q566 500 560 530 Q554 552 544 546 Q540 500 526 482
+    Q456 478 438 472 Q426 495 432 530 Q426 556 416 542 Q412 498 396 478
+    Q336 484 316 474 Q304 498 310 520 Q304 538 294 530 Q290 492 274 476
+    Q236 480 220 464 Q208 490 214 512 Q204 524 198 500 Q194 474 180 464
+    Q150 458 132 430 Z"/>
+  <!-- lösa droppar -->
+  <g fill="#0a0518">
+    <circle cx="984" cy="566" r="5"/><circle cx="678" cy="556" r="6"/><circle cx="434" cy="552" r="5"/><circle cx="812" cy="556" r="4"/>
+  </g>
+
+  <!-- marklinje ovanpå bloben -->
+  <path fill="#0a0518" d="M110 250 Q300 235 480 240 Q600 236 720 242 Q900 236 1090 250 L1090 262 L110 262 Z"/>
+
+  <!-- dött träd (vänster) -->
+  <g fill="#0a0518">
+    <path d="M225 250 L232 200 Q236 170 228 140 Q222 120 236 96 Q244 80 234 62 L242 66 Q250 85 240 104 Q232 122 240 140 Q246 158 262 160 Q286 158 296 136 Q304 118 292 104 L300 104 Q314 122 300 144 Q288 166 262 172 Q250 176 246 200 L250 250 Z"/>
+    <path d="M232 150 Q210 148 196 130 Q184 116 170 120 Q160 110 176 108 Q194 106 206 122 Q218 138 234 140 Z"/>
+    <path d="M196 130 Q186 118 190 100 L196 104 Q194 118 202 128 Z"/>
+    <path d="M236 96 Q240 78 226 70 Q216 62 224 52 L230 56 Q226 64 234 70 Q246 80 242 98 Z"/>
+    <path d="M292 104 Q302 92 318 96 Q330 98 334 88 L338 94 Q330 108 314 104 Q302 102 296 112 Z"/>
+  </g>
+
+  <!-- spökhus (höger) -->
+  <g fill="#0a0518">
+    <path d="M760 250 L760 190 L790 150 L790 120 L806 92 L822 120 L822 150 L852 190 L852 250 Z"/>
+    <path d="M852 250 L852 170 L892 130 L896 100 L906 130 L946 170 L946 250 Z"/>
+    <path d="M946 250 L946 200 L970 172 L994 200 L994 250 Z"/>
+    <rect x="964" y="150" width="12" height="30"/>
+    <path d="M752 190 L800 128 L806 138 L758 196 Z"/>
+    <path d="M846 170 L898 120 L904 130 L852 176 Z"/>
+    <path d="M740 250 L1010 250 L1010 258 L740 258 Z"/>
+  </g>
+  <g fill="#ff8a1f">
+    <rect x="798" y="200" width="14" height="20"/><rect x="800" y="160" width="10" height="14"/>
+    <rect x="882" y="184" width="12" height="18"/><rect x="908" y="184" width="12" height="18"/>
+    <rect x="890" y="150" width="16" height="12"/><rect x="966" y="212" width="10" height="16"/>
+  </g>
+
+  <!-- gravar -->
+  <g fill="#0a0518">
+    <path d="M140 250 L140 216 Q152 200 164 216 L164 250 Z"/>
+    <path d="M1030 250 L1030 224 Q1042 210 1054 224 L1054 250 Z"/>
+    <path d="M700 250 L700 222 Q710 210 720 222 L720 250 Z"/>
+    <path d="M540 250 L540 228 Q550 216 560 228 L560 250 Z"/>
+    <path d="M1070 250 L1070 232 L1084 232 L1084 250 Z"/>
+    <rect x="182" y="214" width="6" height="36"/><rect x="172" y="224" width="26" height="6"/>
+    <rect x="608" y="226" width="5" height="24"/><rect x="600" y="234" width="21" height="5"/>
+  </g>
+
+  <!-- spindelnät -->
+  <g fill="none" stroke="#0a0518" stroke-width="2.5">
+    <path d="M400 250 L400 170 M400 250 L440 178 M400 250 L360 178 M400 250 L470 205 M400 250 L330 205"/>
+    <path d="M382 215 Q400 208 418 215 M370 232 Q400 220 430 232 M348 220 Q400 190 452 220"/>
+  </g>
+
+  <!-- fladdermöss -->
+  <g fill="#0a0518">
+    <path transform="translate(560 120)" d="M0 0 q-16 -22 -36 -6 q-8 -14 -18 0 q8 -24 30 -14 q12 -16 24 18 q12 -34 24 -18 q22 -10 30 14 q-10 -14 -18 0 q-20 -16 -36 6z"/>
+    <path transform="translate(660 70) scale(0.7)" d="M0 0 q-16 -22 -36 -6 q-8 -14 -18 0 q8 -24 30 -14 q12 -16 24 18 q12 -34 24 -18 q22 -10 30 14 q-10 -14 -18 0 q-20 -16 -36 6z"/>
+    <path transform="translate(120 110) scale(0.8)" d="M0 0 q-16 -22 -36 -6 q-8 -14 -18 0 q8 -24 30 -14 q12 -16 24 18 q12 -34 24 -18 q22 -10 30 14 q-10 -14 -18 0 q-20 -16 -36 6z"/>
+    <path transform="translate(1080 180) scale(0.6)" d="M0 0 q-16 -22 -36 -6 q-8 -14 -18 0 q8 -24 30 -14 q12 -16 24 18 q12 -34 24 -18 q22 -10 30 14 q-10 -14 -18 0 q-20 -16 -36 6z"/>
+  </g>
+
+  <use href="#pk" transform="translate(340 224)"/>
+  <use href="#pk" transform="translate(660 224) scale(0.85)"/>
+  <use href="#pk" transform="translate(1120 232) scale(0.7)"/>
+
+  <!-- text -->
+  <g text-anchor="middle" class="spook">
+    <text x="600" y="312" font-size="44" fill="#f4ead8" letter-spacing="8">VARLA</text>
+    <text x="600" y="404" font-size="112" fill="url(#txt)" letter-spacing="2">HALLOWEEN</text>
+    <text x="600" y="462" font-size="56" fill="url(#txt)" letter-spacing="12">KARTA</text>
+  </g>
+</svg>
+  </div>
+  <p class="intro">Anmäl ditt hus i <span id="town"></span> – så syns det direkt på kartan för alla som går bus eller godis.</p>
+
+  <a class="maplink" href="karta.html">
+    <span>🗺️ Öppna kartan</span>
+    <small id="count">Laddar…</small>
+  </a>
+
+  <div class="mine" id="mine">
+    <b>Ditt hus är anmält</b>
+    <span id="mineAddr"></span>
+    <span>Din raderingskod: <span class="code" id="mineCode"></span></span>
+    <small>Spara koden – med den kan du ta bort huset från vilken mobil som helst.</small>
+    <button type="button" class="danger" id="removeBtn">Ta bort mitt hus</button>
+  </div>
+
+  <form id="f">
+    <div class="addr">
+      <input type="text" id="street" placeholder="Gata" autocomplete="address-line1" required>
+      <input type="text" id="number" placeholder="Nr" inputmode="numeric" required>
+    </div>
+    <input type="text" id="name" placeholder="Namn eller hälsning (valfritt)" maxlength="60">
+    <div class="choice">
+      <label><input type="radio" name="scary" value="1" checked><span>🎃 Läskigt hus</span></label>
+      <label><input type="radio" name="scary" value="0" id="ghostOpt"><span>👻 Snällt hus</span></label>
+    </div>
+    <button type="submit" id="btn">Lägg till mitt hus</button>
+    <div id="msg"></div>
+  </form>
+
+  <details>
+    <summary>Har du en raderingskod?</summary>
+    <div class="row">
+      <input type="text" id="codeIn" placeholder="T.ex. K7Q2-M9XA" autocapitalize="characters">
+      <button type="button" class="danger" id="codeBtn">Ta bort</button>
+    </div>
+  </details>
+</main>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+  const CFG = window.HALLOWEEN;
+  document.getElementById('town').textContent = CFG.TOWN;
+  const KEY = 'halloween_mine';
+
+  function setMsg(t, cls) { const m = document.getElementById('msg'); m.textContent = t; m.className = cls || ''; }
+  const showErr = err => setMsg(err.message || String(err), 'err');
+
+  async function load() {
+    try {
+      const { entries } = await api({ action: 'list' });
+      document.getElementById('count').textContent =
+        entries.length ? entries.length + ' hus anmälda hittills' : 'Inga hus anmälda ännu – bli först!';
+    } catch (e) { document.getElementById('count').textContent = 'Kunde inte hämta antal'; }
+  }
+
+  function showMine(m) {
+    const box = document.getElementById('mine');
+    if (!m) { box.classList.remove('show'); return; }
+    document.getElementById('mineAddr').textContent = (m.scary ? '🎃 ' : '👻 ') + m.address;
+    document.getElementById('mineCode').textContent = m.code;
+    box.classList.add('show');
+  }
+  const getMine = () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } };
+  function saveMine(m) { try { localStorage.setItem(KEY, JSON.stringify(m)); } catch (e) {} showMine(m); }
+  function clearMine() { try { localStorage.removeItem(KEY); } catch (e) {} showMine(null); }
+  async function restoreMine() {
+    const m = getMine();
+    if (!m || !m.code) return;
+    showMine(m);
+    try { const { entry } = await api({ action: 'mine', code: m.code }); if (!entry) clearMine(); } catch (e) {}
+  }
+
+  async function remove(code, onDone) {
+    if (!confirm('Ta bort huset från kartan?')) return;
+    setMsg('Tar bort…');
+    try {
+      const r = await api({ action: 'remove', code });
+      setMsg('Borttaget: ' + r.address, 'ok'); onDone && onDone(); load();
+    } catch (e) { showErr(e); }
+  }
+  document.getElementById('removeBtn').addEventListener('click', () => { const m = getMine(); if (m) remove(m.code, clearMine); });
+  document.getElementById('codeBtn').addEventListener('click', () => {
+    const code = document.getElementById('codeIn').value.trim();
+    if (!code) { setMsg('Skriv in din raderingskod.', 'err'); return; }
+    remove(code, () => {
+      document.getElementById('codeIn').value = '';
+      const m = getMine();
+      if (m && m.code.replace(/[^A-Z0-9]/g, '') === code.toUpperCase().replace(/[^A-Z0-9]/g, '')) clearMine();
+    });
+  });
+
+  document.getElementById('f').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const btn = document.getElementById('btn');
+    btn.disabled = true; setMsg('Letar upp adressen…');
+    const address = document.getElementById('street').value.trim() + ' ' +
+                    document.getElementById('number').value.trim() + ', ' + CFG.TOWN;
+    const name = document.getElementById('name').value;
+    const scary = document.querySelector('input[name=scary]:checked').value === '1';
+    try {
+      const r = await api({ action: 'add', name, address, scary: scary ? '1' : '0' });
+      setMsg('Tillagt: ' + r.address, 'ok');
+      document.getElementById('f').reset();
+      saveMine({ code: r.code, address: r.address, scary });
+      load();
+    } catch (e) { showErr(e); }
+    btn.disabled = false;
+  });
+
+  load();
+  restoreMine();
+</script>
+</body>
+</html>
