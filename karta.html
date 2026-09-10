@@ -26,6 +26,17 @@
   }
   #status { position: absolute; z-index: 1000; left: 12px; bottom: 70px; font-size: .85rem; color: var(--cobweb); }
 
+  .closed {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; text-align: center; padding: 24px;
+  }
+  .closed h1 { font-family: Creepster, Impact, sans-serif; font-weight: 400; font-size: 1.8rem; color: var(--pumpkin); margin: 0; }
+  .closed p { color: var(--cobweb); margin: 0; max-width: 320px; }
+  .closed a {
+    margin-top: 8px; padding: 12px 20px; border-radius: 10px; background: var(--pumpkin); color: var(--night);
+    font-weight: 600; text-decoration: none;
+  }
+
   .locate {
     position: absolute; z-index: 1000; left: 12px; bottom: 96px;
     display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--pumpkin);
@@ -44,20 +55,36 @@
 </style>
 </head>
 <body>
-<div id="map"></div>
-
-<div class="bar">
-  <h1>Varla Halloween-karta</h1>
-  <div class="legend"><span>🎃 Läskigt</span><span>👻 Snällt</span></div>
-</div>
-<div id="status">Laddar hus…</div>
-<button class="locate" id="locate" type="button">📍 Var är jag?</button>
-<a class="add" href="index.html">Anmäl ditt hus</a>
+<div id="app"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="config.js"></script>
 <script src="api.js"></script>
 <script>
+async function init() {
+  let enabled = true;
+  try { ({ enabled } = await api({ action: 'status' })); } catch (e) { /* okänd status – visa kartan som vanligt */ }
+
+  if (enabled === false) {
+    document.getElementById('app').innerHTML = `
+      <div class="closed">
+        <h1>🎃 Kartan är stängd</h1>
+        <p>Kartan visas inte just nu. Kika tillbaka senare!</p>
+        <a href="index.html">← Till startsidan</a>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('app').innerHTML = `
+    <div id="map"></div>
+    <div class="bar">
+      <h1>Varla Halloween-karta</h1>
+      <div class="legend"><span>🎃 Läskigt</span><span>👻 Snällt</span></div>
+    </div>
+    <div id="status">Laddar hus…</div>
+    <button class="locate" id="locate" type="button">📍 Var är jag?</button>
+    <a class="add" href="index.html">Anmäl ditt hus</a>`;
+
   const CENTER = window.HALLOWEEN.CENTER;
   const status = document.getElementById('status');
 
@@ -133,6 +160,9 @@
 
   load();
   setInterval(load, 60000);
+}
+
+init();
 </script>
 </body>
 </html>
