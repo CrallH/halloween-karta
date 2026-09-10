@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Varla Halloween-karta</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Creepster&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --night: #1a1030; --ink: #f4ead8; --pumpkin: #ff8a1f; --cobweb: #a99bc7; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--night); color: var(--ink); font-family: Nunito, sans-serif; }
+  #map { position: absolute; inset: 0; }
+
+  .bar {
+    position: absolute; z-index: 1000; left: 12px; right: 12px; top: 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; background: rgba(26,16,48,.92); border: 1px solid var(--pumpkin); border-radius: 12px;
+  }
+  h1 { font-family: Creepster, Impact, sans-serif; font-weight: 400; font-size: 1.5rem; margin: 0; letter-spacing: .04em; color: var(--pumpkin); }
+  .legend { display: flex; gap: 12px; font-size: .9rem; color: var(--cobweb); white-space: nowrap; }
+  .add {
+    position: absolute; z-index: 1000; left: 12px; right: 12px; bottom: 18px;
+    display: block; text-align: center; padding: 14px; border-radius: 12px;
+    background: var(--pumpkin); color: var(--night); font-weight: 600; font-size: 1.05rem; text-decoration: none;
+  }
+  #status { position: absolute; z-index: 1000; left: 12px; bottom: 70px; font-size: .85rem; color: var(--cobweb); }
+
+  .locate {
+    position: absolute; z-index: 1000; left: 12px; bottom: 96px;
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 999px; border: 1px solid var(--pumpkin);
+    background: rgba(26,16,48,.92); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .locate.on { background: var(--pumpkin); color: var(--night); }
+  .locate:disabled { opacity: .6; cursor: wait; }
+  .me { width: 18px; height: 18px; border-radius: 50%; background: #3fa9ff; border: 3px solid #fff; box-shadow: 0 0 0 0 rgba(63,169,255,.6); animation: pulse 2s infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(63,169,255,.6); } 100% { box-shadow: 0 0 0 18px rgba(63,169,255,0); } }
+  @media (prefers-reduced-motion: reduce) { .me { animation: none; } }
+
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.5); }
+  .leaflet-popup-content { font-family: Nunito, sans-serif; }
+  .marker-pin { font-size: 28px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+  @media (min-width: 700px) { .add { left: auto; right: 12px; width: 260px; } .locate { bottom: 18px; } }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="bar">
+  <h1>Varla Halloween-karta</h1>
+  <div class="legend"><span>🎃 Läskigt</span><span>👻 Snällt</span></div>
+</div>
+<div id="status">Laddar hus…</div>
+<button class="locate" id="locate" type="button">📍 Var är jag?</button>
+<a class="add" href="index.html">Anmäl ditt hus</a>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+  const CENTER = window.HALLOWEEN.CENTER;
+  const status = document.getElementById('status');
+
+  const map = L.map('map', { zoomControl: false }).setView([CENTER.lat, CENTER.lng], CENTER.zoom);
+  L.control.zoom({ position: 'topright' }).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap-bidragsgivare', maxZoom: 19
+  }).addTo(map);
+
+  const layer = L.layerGroup().addTo(map);
+  const icon = scary => L.divIcon({
+    html: `<div class="marker-pin">${scary ? '🎃' : '👻'}</div>`, className: '', iconSize: [28, 28], iconAnchor: [14, 28]
+  });
+
+  let fitted = false;
+  function render(entries) {
+    layer.clearLayers();
+    const pts = [];
+    entries.forEach(e => {
+      const label = `<b>${e.scary ? '🎃 Läskigt hus' : '👻 Snällt hus'}</b><br>${esc(e.address)}${e.name ? '<br><i>' + esc(e.name) + '</i>' : ''}`;
+      L.marker([e.lat, e.lng], { icon: icon(e.scary) }).bindPopup(label).addTo(layer);
+      pts.push([e.lat, e.lng]);
+    });
+    status.textContent = entries.length
+      ? entries.length + ' hus – ' + entries.filter(e => e.scary).length + ' läskiga'
+      : 'Inga hus anmälda ännu';
+    if (pts.length && !fitted) { map.fitBounds(pts, { padding: [60, 60], maxZoom: 16 }); fitted = true; }
+  }
+  async function load() {
+    try { render((await api({ action: 'list' })).entries); }
+    catch (e) { status.textContent = e.message || String(e); }
+  }
+
+  // --- Egen position ---
+  let watchId = null, meMarker = null, meCircle = null, follow = false;
+  const locBtn = document.getElementById('locate');
+  const meIcon = L.divIcon({ html: '<div class="me"></div>', className: '', iconSize: [18, 18], iconAnchor: [9, 9] });
+
+  function onPos(pos) {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    const acc = pos.coords.accuracy || 0;
+    if (!meMarker) {
+      meMarker = L.marker(ll, { icon: meIcon, zIndexOffset: 1000 }).bindPopup('Här är du').addTo(map);
+      meCircle = L.circle(ll, { radius: acc, color: '#3fa9ff', weight: 1, fillOpacity: .12 }).addTo(map);
+      map.setView(ll, Math.max(map.getZoom(), 16));
+    } else {
+      meMarker.setLatLng(ll); meCircle.setLatLng(ll).setRadius(acc);
+      if (follow) map.panTo(ll);
+    }
+    locBtn.disabled = false; locBtn.classList.add('on'); locBtn.textContent = '📍 Följer dig';
+  }
+  function onPosErr(err) {
+    stopLocate();
+    status.textContent = err.code === 1 ? 'Platsåtkomst nekad – tillåt plats i webbläsaren.' : 'Kunde inte hämta din position.';
+  }
+  function startLocate() {
+    if (!navigator.geolocation) { status.textContent = 'Din webbläsare stödjer inte platstjänster.'; return; }
+    locBtn.disabled = true; locBtn.textContent = '📍 Letar…';
+    follow = true;
+    watchId = navigator.geolocation.watchPosition(onPos, onPosErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+  }
+  function stopLocate() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = null; follow = false;
+    locBtn.disabled = false; locBtn.classList.remove('on'); locBtn.textContent = '📍 Var är jag?';
+  }
+  locBtn.addEventListener('click', () => {
+    if (watchId === null) startLocate();
+    else if (!follow && meMarker) { follow = true; map.panTo(meMarker.getLatLng()); locBtn.textContent = '📍 Följer dig'; }
+    else stopLocate();
+  });
+  map.on('dragstart', () => { if (follow) { follow = false; locBtn.textContent = '📍 Centrera på mig'; } });
+
+  load();
+  setInterval(load, 60000);
+</script>
+</body>
+</html>
