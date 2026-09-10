@@ -21,6 +21,7 @@
     text-decoration: none; font-weight: 600; font-size: 1.05rem;
   }
   .maplink small { color: var(--cobweb); font-weight: 400; }
+  .maplink.disabled { opacity: .55; pointer-events: none; border-color: #4a3a72; }
 
   .mine {
     margin: 12px 18px 0; padding: 14px 16px; border-radius: 12px; background: #261a44; border: 1px solid #4a3a72;
@@ -178,8 +179,8 @@
   </div>
   <p class="intro">Anmäl ditt hus i <span id="town"></span> – så syns det direkt på kartan för alla som går bus eller godis.</p>
 
-  <a class="maplink" href="karta.html">
-    <span>🗺️ Öppna kartan</span>
+  <a class="maplink" id="maplink" href="karta.html">
+    <span id="maplinkText">🗺️ Öppna kartan</span>
     <small id="count">Laddar…</small>
   </a>
 
@@ -230,6 +231,19 @@
       document.getElementById('count').textContent =
         entries.length ? entries.length + ' hus anmälda hittills' : 'Inga hus anmälda ännu – bli först!';
     } catch (e) { document.getElementById('count').textContent = 'Kunde inte hämta antal'; }
+  }
+
+  async function loadMapStatus() {
+    const link = document.getElementById('maplink');
+    try {
+      const { enabled } = await api({ action: 'status' });
+      if (enabled === false) {
+        link.removeAttribute('href');
+        link.classList.add('disabled');
+        document.getElementById('maplinkText').textContent = '🗺️ Kartan är stängd just nu';
+        document.getElementById('count').textContent = 'Kika tillbaka senare';
+      }
+    } catch (e) { /* status okänd – lämna kartlänken aktiv */ }
   }
 
   function showMine(m) {
@@ -287,6 +301,7 @@
   });
 
   load();
+  loadMapStatus();
   restoreMine();
 </script>
 </body>
